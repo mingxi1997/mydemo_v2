@@ -35,3 +35,4 @@ threads=2
 
 uwsgi --ini config.ini
 
+pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html
