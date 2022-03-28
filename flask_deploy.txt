@@ -21,8 +21,11 @@ sudo /etc/init.d/nginx start
 
 [uwsgi]
 module = myproject:app
+
 socket = 127.0.0.1:5000
+
 processes = 4
+
 threads = 2
 
 
