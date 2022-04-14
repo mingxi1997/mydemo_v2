@@ -25,7 +25,7 @@ class ArcLoss(nn.Module):
         # sin_theat =  torch.sqrt(1.0- torch.pow(cos_theat,2))
         # cos_theat_m = cos_theat* torch.cos(self.m) - sin_theat* torch.sin(self.m)
         
-        cos_theat_m = torch.cos(torch.acos(cos_theat)+arcloss.m)
+        cos_theat_m = torch.cos(torch.acos(cos_theat)+self.m)
         
         cos_theat_ =  torch.exp(cos_theat * self.s)
         sum_cos_theat = torch.sum( torch.exp(cos_theat*self.s),dim=1,keepdim=True)-cos_theat_
