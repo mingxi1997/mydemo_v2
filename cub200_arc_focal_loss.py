@@ -161,9 +161,14 @@ focalloss=FocalLoss()
 # net = nn.DataParallel(net)
 # arcloss=nn.DataParallel(arcloss)
 
+lr_func = lambda epoch: 0.99 ** epoch
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_func)
+
+
 best_result=[0,0]
 num_epochs=120
 for epoch in range(num_epochs):
+    scheduler.step()
     
     train_loss=[]
     train_acc=[]
