@@ -145,7 +145,7 @@ class Net(nn.Module):
         output = self.output_layer(feature)
         return feature, output
  
-net=Net(1000).cuda()
+net=Net(200).cuda()
 arcloss = ArcLoss( 200,1000,).cuda()
 nllloss = nn.NLLLoss(reduction="sum").cuda()
 optimizer =  torch.optim.SGD(net.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
@@ -170,13 +170,13 @@ num_epochs=120
 for epoch in range(num_epochs):
     scheduler.step()
     
-    train_loss=[]
-    train_acc=[]
+
     
     num_step=len(train_loader)
     for step, (x, y) in enumerate(train_loader):
 
-         
+            train_loss=[]
+            train_acc=[]
             x = x.cuda()
             y = y.cuda()
             xs, ys = net(x) 
