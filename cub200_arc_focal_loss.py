@@ -209,7 +209,7 @@ for epoch in range(num_epochs):
             
             if step%1==0:
                 print ('Epoch {}/{}, Step {}/{},  Training Loss: {:.3f}, Training Accuracy: {:.3f}'
-                            .format(epoch+1,num_epochs, step,num_step, sum(train_loss)/len(train_loss), sum(train_acc)/len(train_acc)) )  
+                            .format(epoch+1,num_epochs, step,num_step, sum(train_loss)/len(train_loss)/t_batch_size, sum(train_acc)/len(train_acc)) )  
         
     
     test_loss=[]
