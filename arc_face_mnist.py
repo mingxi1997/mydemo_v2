@@ -7,7 +7,37 @@ import torch.utils.data as data
 import matplotlib.pyplot as plt
 import torch.optim.lr_scheduler as lr_scheduler
 import os
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+import numpy as np
+
+class FocalLoss(nn.Module):
+    '''Multi-class Focal loss implementation'''
+    def __init__(self, gamma=2, weight=None):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.weight = weight
+
+    def forward(self, input, target):
+        """
+        input: [N, C]
+        target: [N, ]
+        """
+        logpt = F.log_softmax(input, dim=1)
+        pt = torch.exp(logpt)
+        logpt = (1-pt)**self.gamma * logpt
+        loss = F.nll_loss(logpt, target, self.weight)
+        return loss
+    
+    
+    
 class ArcLoss(nn.Module):
     def __init__(self,class_num,feature_num,s=30,m=0.5):
         super().__init__()
@@ -35,6 +65,56 @@ class ArcLoss(nn.Module):
         divide = (top/(top+sum_cos_theat))
 
         return divide
+import  math
+class ArcMarginProduct(nn.Module):
+    r"""Implement of large margin arc distance: :
+        Args:
+            in_features: size of each input sample
+            out_features: size of each output sample
+            s: norm of input feature
+            m: margin
+            cos(theta + m)
+        """
+    def __init__(self, in_features, out_features, s=30.0, m=0.50, easy_margin=False, ls_eps=0.0):
+        super(ArcMarginProduct, self).__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.s = s
+        self.m = m
+        self.ls_eps = ls_eps  # label smoothing
+        self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
+        nn.init.xavier_uniform_(self.weight)
+
+        self.easy_margin = easy_margin
+        self.cos_m = math.cos(m)
+        self.sin_m = math.sin(m)
+        self.th = math.cos(math.pi - m)
+        self.mm = math.sin(math.pi - m) * m
+
+    def forward(self, input, label):
+        # --------------------------- cos(theta) & phi(theta) ---------------------------
+        cosine = F.linear(F.normalize(input), F.normalize(self.weight))
+        sine = torch.sqrt(1.0 - torch.pow(cosine, 2))
+        phi = cosine * self.cos_m - sine * self.sin_m
+        if self.easy_margin:
+            phi = torch.where(cosine > 0, phi, cosine)
+        else:
+            phi = torch.where(cosine > self.th, phi, cosine - self.mm)
+        # --------------------------- convert label to one-hot ---------------------------
+        # one_hot = torch.zeros(cosine.size(), requires_grad=True, device='cuda')
+        one_hot = torch.zeros(cosine.size(), device='cuda')
+        one_hot.scatter_(1, label.view(-1, 1).long(), 1)
+        if self.ls_eps > 0:
+            one_hot = (1 - self.ls_eps) * one_hot + self.ls_eps / self.out_features
+        # -------------torch.where(out_i = {x_i if condition_i else y_i) -------------
+        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        output *= self.s
+
+        return output   
+    
+    
+    
+    
 class CNN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -62,7 +142,7 @@ class CNN(nn.Module):
         # print(fc.data.size())
         feature = self.linear_layer(fc)
         output = self.output_layer(feature)
-        return feature, F.log_softmax(output,dim=1)
+        return feature, output
 def decet(feature,targets,epoch):
     color = ["red", "black", "yellow", "green", "pink",
     "gray", "lightgreen", "orange", "blue", "teal"]
@@ -106,15 +186,21 @@ if CUDA:
     net = net.cuda()    
       
 arcloss = ArcLoss(10, 3).cuda()
-nllloss = nn.NLLLoss(reduction="sum").cuda()
-optmizer =  torch.optim.SGD(net.parameters(), lr=0.0001, momentum=0.9, weight_decay=0.0005)
+larcloss = ArcMarginProduct(10, 3).cuda()
+
+
+nllloss= nn.NLLLoss(reduction="sum").cuda()
+focalloss=FocalLoss(gamma=0)
+
+
+optmizer =  torch.optim.SGD(net.parameters(), lr=0.01, momentum=0.9, weight_decay=0.0005)
 optmizerarc =  torch.optim.Adam(arcloss.parameters())
 
 
 save_pic_path=""
 if __name__ == '__main__':
 
-    num_epochs = 50
+    num_epochs = 10
     # net = net.to(device)
     for epoch in range(num_epochs):
         train_loss = []
@@ -139,11 +225,19 @@ if __name__ == '__main__':
             value =  torch.argmax(ys, dim=1)
             acc =  torch.sum((value == y).float()) / len(y)
             
-            ################ LOSS CAL. ################
+            # ################ LOSS CAL. ################
             arc_loss =  torch.log(arcloss(xs))
-            nll_loss = nllloss(ys, y)
+            focal_loss = focalloss(ys, y)
+            
+            
+            
             arcface_loss = nllloss(arc_loss, y)
-            loss = nll_loss+arcface_loss
+            
+            
+            larcface_loss=nn.CrossEntropyLoss()(ys,y)
+            loss = larcface_loss+focal_loss
+            
+            # loss=arcface_loss
             iter_loss = loss.item()
             ###########################################
             
@@ -164,7 +258,7 @@ if __name__ == '__main__':
         decet(features.data.cpu(), targets.data.cpu(),epoch)
         train_loss.append(iter_loss/ iterations)
         train_accuracy.append(acc)
-        print ('Epoch {}/{}, Training Loss: {:.3f}, Training Accuracy: {:.3f}'
+        print ('Epoch {}/{}, Training Loss: {:.5f}, Training Accuracy: {:.3f}'
            .format(epoch+1, num_epochs, train_loss[-1], sum(train_accuracy)/len(train_accuracy)))    
         
         test_accuracy = []
