@@ -39,19 +39,15 @@ device=torch.device('cuda:0')
 # weight='/home/xu/utest/0_0.pt'
 
 
-model=models.MobileNetV2().to(device)
-
-model.load_state_dict(torch.load('/home/xu/MyDemo/DeepLearning/simple_classification/mobilenet_v2-b0353104.pth'))
-
-
-
+model=models.MobileNetV2()
+model.load_state_dict(torch.load('/home/xu/MyDemo/DeepLearning/simple_classification/mobilenet_v2-b0353104.pth'),strict=False)
 for param in model.parameters():
     param.requires_grad = False
-    
-model.fc = nn.Sequential(*[
+model.classifier = nn.Sequential(*[
     nn.Dropout(p=0.2, inplace=False),
     nn.Linear(in_features=1280, out_features=2),
 ])
+
 
 for param in model.classifier.parameters():
     param.requires_grad = True
