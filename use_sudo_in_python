@@ -1,0 +1,6 @@
+import os
+password = "slkj"
+command = "sudo cp conf.yaml /etc/netplan/01-network-manager-all.yaml"
+
+
+os.system('echo %s | sudo -S %s' % (password, command))
